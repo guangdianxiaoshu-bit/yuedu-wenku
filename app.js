@@ -53,8 +53,16 @@
   }
   var favs = load('ywd_fav_v1', []);            // id 数组
   var reports = load('ywd_reports_v1', []);     // [{id,title,note,ts}]
+  var reads = load('ywd_read_v1', []);          // 已读 id 数组
 
   function isFav(id) { return favs.indexOf(id) >= 0; }
+  function isRead(id) { return reads.indexOf(id) >= 0; }
+  function markRead(id) {
+    if (isRead(id)) return;
+    reads.push(id);
+    save('ywd_read_v1', reads);
+    updateUtilBar();
+  }
   function toggleFav(id) {
     var i = favs.indexOf(id);
     if (i >= 0) favs.splice(i, 1); else favs.push(id);
@@ -71,13 +79,15 @@
   }
 
   /* ---------------- 状态 ---------------- */
-  var state = { genre: '全部', tag: '全部', diff: '全部', q: '', author: '', fav: false };
+  var state = { genre: '全部', tag: '全部', diff: '全部', q: '', author: '', fav: false, unread: false };
   var selected = {};
   var curId = null;
   var lastScroll = 0;
+  var readTimer = null;
 
   function filtered() {
     return ALL.filter(function (a) {
+      if (state.unread && isRead(a._id)) return false;
       if (state.fav && !isFav(a._id)) return false;
       if (state.genre !== '全部' && a.genre !== state.genre) return false;
       if (state.tag !== '全部' && (a.tags || []).indexOf(state.tag) < 0) return false;
@@ -168,10 +178,11 @@
   function liHtml(a) {
     var note = (a.noteOrigin && a.note) ? a.note : '';
     var ch = chipLabel(a);
+    var read = isRead(a._id);
     return '' +
       '<input type="checkbox" class="ck" ' + (selected[a._id] ? 'checked' : '') + '>' +
-      '<div class="main" data-id="' + a._id + '">' +
-      '  <div class="t">' + esc(a.title) + '</div>' +
+      '<div class="main' + (read ? ' read' : '') + '" data-id="' + a._id + '">' +
+      '  <div class="t">' + (read ? '<span class="rdone">✓ 已读</span>' : '<span class="dot" title="未读"></span>') + esc(a.title) + '</div>' +
       '  <div class="tags">' + tagHtml(a) +
       '    <span class="tag genre">' + esc(a.genre) + '</span>' +
       (a.genreNote ? '<span class="tag none">' + esc(a.genreNote) + '</span>' : '') +
@@ -219,10 +230,22 @@
     var list = filtered();
     $('#ckAll').checked = list.length > 0 && list.every(function (a) { return selected[a._id]; });
   }
+  function unreadCount() {
+    var n = 0;
+    ALL.forEach(function (a) { if (!isRead(a._id)) n++; });
+    return n;
+  }
   function updateUtilBar() {
+    var u = unreadCount();
+    var done = ALL.length - u;
     var f = $('#btnFav');
     f.textContent = (state.fav ? '★' : '☆') + ' 我的收藏';
     f.classList.toggle('on', state.fav);
+    var ub = $('#btnUnread');
+    ub.textContent = '◎ 未读 ' + u;
+    ub.classList.toggle('on', state.unread);
+    $('#readHint').textContent = done === ALL.length ?
+      '🎉 已读完 ' + ALL.length + ' 篇，太棒了！' : '已读 ' + done + ' / ' + ALL.length + ' 篇';
     if (reports.length) {
       var b = $('#btnReports');
       b.hidden = false;
@@ -271,6 +294,12 @@
       (a.tailNote ? '<p class="tailnote">（' + esc(a.tailNote) + '）</p>' : '');
     refreshStarState(id, isFav(id));
     updateNav(a);
+    /* 停留读一会儿才记已读，防止误点翻篇 */
+    clearTimeout(readTimer);
+    var id0 = id;
+    readTimer = setTimeout(function () {
+      if (curId === id0 && !$('#detailView').hidden && !isRead(id0)) markRead(id0);
+    }, 10000);
     if (location.hash !== '#/read/' + id) history.replaceState(null, '', '#/read/' + id);
     window.scrollTo(0, 0);
     fillDisclaimers();
@@ -531,6 +560,17 @@
     });
     $('#btnFollowHome').addEventListener('click', doFollow);
     $('#btnFollow').addEventListener('click', doFollow);
+    $('#btnUnread').addEventListener('click', function () {
+      state.unread = !state.unread;
+      renderHome();
+    });
+    $('#btnResetRead').addEventListener('click', function () {
+      if (!window.confirm('确定把全部文章重新标记为未读吗？已读进度会被清空。')) return;
+      reads = [];
+      save('ywd_read_v1', reads);
+      renderHome();
+      updateUtilBar();
+    });
     $('#btnRandom').addEventListener('click', openRandom);
     $('#btnReports').addEventListener('click', showReports);
     $('#verOk').addEventListener('click', function () {
