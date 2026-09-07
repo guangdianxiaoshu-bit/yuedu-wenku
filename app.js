@@ -331,6 +331,23 @@
   /* ---------------- 打印 ---------------- */
   var POPT = load('ywd_print_v1', { fs: 'md', src: true, page: 'each' });
   var pendingPrint = [];
+
+  /* 移动端限制：打印仅电脑可用 */
+  function isTouchDevice() {
+    var ua = navigator.userAgent;
+    var mobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    var ipadLike = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    return mobile || ipadLike;
+  }
+  function guardPrint() {
+    if (!isTouchDevice()) return true;
+    showModal(
+      '<h3>🖨 请在电脑上打印</h3>' +
+      '<div class="m-empty" style="text-align:left;line-height:1.8">' +
+      '打印功能仅在电脑上可用。<br>请用电脑浏览器打开本页，选好篇目后再打印，也可以“另存为 PDF”保存文章。</div>' +
+      '<div class="m-actions"><button class="btn" onclick="window.__ywdClose && window.__ywdClose()">知道了</button></div>');
+    return false;
+  }
   function sheetHtml(a) {
     var note = (a.noteOrigin && a.note) ? a.note : '';
     return '' +
@@ -495,11 +512,13 @@
       updateSelBar();
     });
     $('#btnPrintSel').addEventListener('click', function () {
+      if (!guardPrint()) return;
       var ids = filtered().map(function (a) { return a._id; })
         .filter(function (id) { return selected[id]; });
       askPrint(ids);
     });
     $('#btnPrintOne').addEventListener('click', function () {
+      if (!guardPrint()) return;
       if (curId) askPrint([curId]);
     });
     $('#btnFavOne').addEventListener('click', function () {
