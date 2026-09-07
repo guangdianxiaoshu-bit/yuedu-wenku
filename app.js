@@ -479,6 +479,42 @@
     else window.prompt('请手动复制：', txt);
   }
 
+  /* ---------------- 关注引导 ---------------- */
+  var FOLLOW = '光点小塾';
+  function legacyCopyPlain(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+  function followTip() {
+    showModal(
+      '<h3>关注“' + FOLLOW + '”公众号</h3>' +
+      '<div class="follow-name">' + FOLLOW + '</div>' +
+      '<div class="m-empty" style="text-align:left;line-height:1.9">' +
+      '公众号名称已复制。请家长打开微信：<br>' +
+      '1. 点右上角的放大镜 🔍；<br>' +
+      '2. 在搜索框粘贴“' + FOLLOW + '”并搜索；<br>' +
+      '3. 进入公众号主页，点“关注”。<br>' +
+      '<span style="color:#8a7b7a;font-size:13px">关注后可以收到更多阅读与写作内容推荐。</span></div>' +
+      '<div class="m-actions"><button class="btn" onclick="window.__ywdClose && window.__ywdClose()">知道了</button></div>');
+  }
+  function doFollow() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(FOLLOW).then(followTip, function () {
+        legacyCopyPlain(FOLLOW);
+        followTip();
+      });
+    } else {
+      legacyCopyPlain(FOLLOW);
+      followTip();
+    }
+  }
+
   /* ---------------- 事件 ---------------- */
   function bind() {
     $('#search').addEventListener('input', function () {
@@ -493,6 +529,8 @@
       state.fav = !state.fav;
       renderHome();
     });
+    $('#btnFollowHome').addEventListener('click', doFollow);
+    $('#btnFollow').addEventListener('click', doFollow);
     $('#btnRandom').addEventListener('click', openRandom);
     $('#btnReports').addEventListener('click', showReports);
     $('#verOk').addEventListener('click', function () {
