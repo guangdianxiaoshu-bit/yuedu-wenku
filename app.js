@@ -41,6 +41,9 @@
       return '<span class="tag theme">' + esc(t) + '</span>';
     }).join('');
   }
+  function printTagHtml(a) {
+    return isPrinted(a._id) ? '<span class="tag printed">🖨 已打印</span>' : '';
+  }
   function lenTxt(a) { return '约 ' + a.wc + ' 字 · 约 ' + a.mins + ' 分钟'; }
 
   /* ---------------- 本地存储 ---------------- */
@@ -54,14 +57,30 @@
   var favs = load('ywd_fav_v1', []);            // id 数组
   var reports = load('ywd_reports_v1', []);     // [{id,title,note,ts}]
   var reads = load('ywd_read_v1', []);          // 已读 id 数组
+  var printed = load('ywd_printed_v1', []);     // 已打印 id 数组
 
   function isFav(id) { return favs.indexOf(id) >= 0; }
   function isRead(id) { return reads.indexOf(id) >= 0; }
+  function isPrinted(id) { return printed.indexOf(id) >= 0; }
   function markRead(id) {
     if (isRead(id)) return;
     reads.push(id);
     save('ywd_read_v1', reads);
     updateUtilBar();
+  }
+  function markPrinted(ids) {
+    var changed = false;
+    ids.forEach(function (id) {
+      if (printed.indexOf(id) < 0) {
+        printed.push(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      save('ywd_printed_v1', printed);
+      updateUtilBar();
+      if (!$('#homeView').hidden) renderList();   /* 当前在目录页则即时显示标签 */
+    }
   }
   function toggleFav(id) {
     var i = favs.indexOf(id);
@@ -183,7 +202,7 @@
       '<input type="checkbox" class="ck" ' + (selected[a._id] ? 'checked' : '') + '>' +
       '<div class="main' + (read ? ' read' : '') + '" data-id="' + a._id + '">' +
       '  <div class="t">' + (read ? '<span class="rdone">✓ 已读</span>' : '<span class="dot" title="未读"></span>') + esc(a.title) + '</div>' +
-      '  <div class="tags">' + tagHtml(a) +
+      '  <div class="tags">' + printTagHtml(a) + tagHtml(a) +
       '    <span class="tag genre">' + esc(a.genre) + '</span>' +
       (a.genreNote ? '<span class="tag none">' + esc(a.genreNote) + '</span>' : '') +
       (ch ? '<span class="tag adapted">' + ch + '</span>' : '') +
@@ -245,7 +264,8 @@
     ub.textContent = '◎ 未读 ' + u;
     ub.classList.toggle('on', state.unread);
     $('#readHint').textContent = done === ALL.length ?
-      '🎉 已读完 ' + ALL.length + ' 篇，太棒了！' : '已读 ' + done + ' / ' + ALL.length + ' 篇';
+      '🎉 已读完 ' + ALL.length + ' 篇，太棒了！' : '已读 ' + done + ' / ' + ALL.length + ' 篇' +
+      ' · 已打印 ' + printed.length + ' 篇';
     if (reports.length) {
       var b = $('#btnReports');
       b.hidden = false;
@@ -277,7 +297,7 @@
     $('#detailBody').innerHTML =
       '<header class="rd-head">' +
       '  <div class="rd-title">' + esc(a.title) + '</div>' +
-      '  <div class="tags rd-tags">' + tagHtml(a) + '</div>' +
+      '  <div class="tags rd-tags">' + printTagHtml(a) + tagHtml(a) + '</div>' +
       '  <div class="rd-author">' + (a.author === '佚名' ? '佚名' : esc(a.author)) + '</div>' +
       '  <div class="rd-meta">' +
       '    <span>' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') + '</span>' +
@@ -393,6 +413,7 @@
       '</section>';
   }
   function doPrint(ids) {
+    markPrinted(ids);
     var root = $('#printRoot');
     root.className = 'pfs-' + POPT.fs + (POPT.src ? '' : ' nosrc') +
                      (POPT.page === 'cont' ? ' p-cont' : '');
