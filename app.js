@@ -15,6 +15,8 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+  var TAG_ORDER = ['写景', '抒情', '叙事', '怀旧', '思乡', '亲情', '成长', '家国',
+                   '科幻', '人与自然', '市井', '乡土', '教育', '读书'];
   /* 行内：转义后还原 **加粗** */
   function inline(s) {
     return esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -39,7 +41,7 @@
   function diffCls(a) { return a.diff === '简单' ? 'easy' : (a.diff === '困难' ? 'hard' : 'mid'); }
 
   /* ---------------- 状态 ---------------- */
-  var state = { lib: '全部', genre: '全部', diff: '全部', q: '' };
+  var state = { lib: '全部', genre: '全部', tag: '全部', diff: '全部', q: '' };
   var selected = {};          // id -> true
   var lastScroll = 0;
 
@@ -47,6 +49,7 @@
     return ALL.filter(function (a) {
       if (state.lib !== '全部' && a.lib !== state.lib) return false;
       if (state.genre !== '全部' && a.genre !== state.genre) return false;
+      if (state.tag !== '全部' && (a.tags || []).indexOf(state.tag) < 0) return false;
       if (state.diff !== '全部' && a.diff !== state.diff) return false;
       if (state.q) {
         var hay = (a.title + ' ' + a.author + ' ' + (a.note || '')).toLowerCase();
@@ -72,9 +75,7 @@
     el.dataset.v = opts.v;
     el.innerHTML = esc(opts.label) + (opts.n ? '<span class="n">' + opts.n + '</span>' : '');
     el.addEventListener('click', function () {
-      if (opts.k === 'lib') state.lib = opts.v;
-      else if (opts.k === 'genre') state.genre = opts.v;
-      else if (opts.k === 'diff') state.diff = opts.v;
+      state[opts.k] = opts.v;   /* k ∈ lib/genre/tag/diff */
       renderHome();
     });
     return el;
@@ -84,8 +85,8 @@
     var libs = [['全部'], ['七年级'], ['八九年级']];
     var genres = [['全部'], ['散文'], ['小说'], ['微型小说'], ['记叙文']];
     var diffs = [['全部'], ['简单'], ['中级'], ['困难']];
-    var libEl = $('#libChips'), gEl = $('#genreChips'), dEl = $('#diffChips');
-    libEl.innerHTML = ''; gEl.innerHTML = ''; dEl.innerHTML = '';
+    var libEl = $('#libChips'), gEl = $('#genreChips'), dEl = $('#diffChips'), tEl = $('#tagChips');
+    libEl.innerHTML = ''; gEl.innerHTML = ''; dEl.innerHTML = ''; tEl.innerHTML = '';
     function cnt(libSel, genreSel, diffSel) {
       return ALL.filter(function (a) {
         if (libSel !== '全部' && a.lib !== libSel) return false;
@@ -106,6 +107,20 @@
       dEl.appendChild(chip({ k: 'diff', v: g[0], label: g[0] === '全部' ? '全部难度' : g[0],
         on: state.diff === g[0], n: g[0] === '全部' ? '' : cnt('全部', '全部', g[0]) }));
     });
+    tEl.appendChild(chip({ k: 'tag', v: '全部', label: '全部主题',
+      on: state.tag === '全部', n: ALL.length }));
+    TAG_ORDER.forEach(function (t) {
+      var n = ALL.filter(function (a) { return (a.tags || []).indexOf(t) >= 0; }).length;
+      if (n > 0) {
+        tEl.appendChild(chip({ k: 'tag', v: t, label: t, on: state.tag === t, n: n }));
+      }
+    });
+  }
+
+  function tagHtml(a) {
+    return (a.tags || []).map(function (t) {
+      return '<span class="tag theme">' + esc(t) + '</span>';
+    }).join('');
   }
 
   function liHtml(a) {
@@ -116,6 +131,7 @@
       '<div class="main" data-id="' + a._id + '">' +
       '  <div class="t">' + esc(a.title) + '</div>' +
       '  <div class="tags">' +
+      tagHtml(a) +
       '    <span class="tag genre">' + esc(a.genre) + '</span>' +
       (a.genreNote ? '<span class="tag none">' + esc(a.genreNote) + '</span>' : '') +
       (ch ? '<span class="tag adapted">' + ch + '</span>' : '') +
@@ -183,6 +199,7 @@
     h.innerHTML =
       '<header class="rd-head">' +
       '  <div class="rd-title">' + esc(a.title) + '</div>' +
+      '  <div class="tags rd-tags">' + tagHtml(a) + '</div>' +
       '  <div class="rd-author">' + (a.author === '佚名' ? '佚名' : esc(a.author)) + '</div>' +
       '  <div class="rd-meta">' +
       '    <span>' + esc(a.lib) + ' · 篇 ' + String(a.no).padStart(3, '0') + '</span><span class="sep">｜</span>' +
@@ -224,6 +241,7 @@
     return '' +
       '<section class="p-sheet">' +
       '  <div class="p-kicker">' + esc(a.lib) + ' · 阅读篇 ' + String(a.no).padStart(3, '0') +
+      ' ｜ ' + (a.tags || []).join(' · ') +
       ' ｜ ' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') +
       ' ｜ 难度 ' + esc(a.diff) + '</div>' +
       '  <h1>' + esc(a.title) + '</h1>' +
