@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>光点小塾 · 阅读文库</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23CD5452'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -38,10 +38,12 @@
 
     <div class="utilbar">
       <button id="btnFollowHome" class="btn sm" title="复制公众号名称，去微信关注">📣 关注我们</button>
+      <button id="btnUnread" class="btn ghost sm" title="只看还没读的文章">◎ 未读</button>
       <button id="btnFav" class="btn ghost sm" title="只看我收藏的文章">☆ 我的收藏</button>
       <button id="btnRandom" class="btn ghost sm" title="随便读一篇">🎲 随机一篇</button>
       <button id="btnReports" class="btn ghost sm" hidden>📮 我的反馈</button>
-      <span class="util-hint">☆ 收藏常用篇目，随时回来读</span>
+      <button id="btnResetRead" class="btn ghost sm" title="清空全部已读记录，从头开始">↺ 清空已读</button>
+      <span class="util-hint" id="readHint"></span>
     </div>
 
     <div class="selbar">
@@ -102,7 +104,7 @@
   <div class="modal" id="modalBox" role="dialog"></div>
 </div>
 
-<script src="data.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="data.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
