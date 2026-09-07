@@ -1,2 +1,11 @@
-# yuedu-wenku
-Literary reading selections for middle school (prose &amp; fiction, 138 pieces)
+# 中学文学性阅读文库（yuedu-wenku）
+
+中学文学性现代文阅读选文库（散文 · 小说 · 记叙文，共 138 篇），供课堂阅读积累使用。
+
+- 七年级 124 篇 · 八九年级 14 篇
+- 线上页面：https://guangdianxiaoshu-bit.github.io/yuedu-wenku/
+- 功能：目录按文体/难度筛选与搜索；点开阅读全文（含作者与删改标注）；勾选多篇一键打印
+- 内容仅供学员阅读积累，来源于各地试卷与公开出版物，版权归原作者所有；如有侵权请联系删除。
+- 数据源：七年级阅读讲义-现代文阅读、八九年级阅读理解讲义 组卷网真题归档（本地归档 md）
+
+生成方式：build_data.py 解析归档 md -> out/articles.json -> gen_web.py 打包 web/data.js
