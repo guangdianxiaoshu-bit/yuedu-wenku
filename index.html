@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>中学文学性阅读文库 · 光点小塾</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23CD5452'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -14,18 +14,33 @@
   <header class="topbar">
     <div class="brand">
       <div class="brand-name">中学文学性阅读文库</div>
-      <div class="brand-sub">散文 · 小说 · 记叙文，仅收文学性文本</div>
+      <div class="brand-sub">散文 · 小说 · 记叙文，阅读与摘抄都可以来这里找</div>
     </div>
   </header>
 
   <main class="wrap">
     <div class="disclaimer" id="homeDisclaimer"></div>
+    <div class="vertip" id="verTip" hidden>
+      内容已更新到最新版 <button id="verOk" class="btn ghost">知道了</button>
+    </div>
 
     <div class="toolbar">
-      <input id="search" class="search" type="search" placeholder="搜篇名 / 作者">
+      <div class="search-row">
+        <input id="search" class="search" type="search" placeholder="搜篇名 / 作者 / 正文">
+        <select id="authorSel" class="author-sel" title="按作者筛选">
+          <option value="">全部作者</option>
+        </select>
+      </div>
       <div class="chips-row" id="genreChips"></div>
       <div class="chips-row chips-scroll" id="tagChips" title="主题标签"></div>
       <div class="chips-row" id="diffChips"></div>
+    </div>
+
+    <div class="utilbar">
+      <button id="btnFav" class="btn ghost sm" title="只看我收藏的文章">☆ 我的收藏</button>
+      <button id="btnRandom" class="btn ghost sm" title="随便读一篇">🎲 随机一篇</button>
+      <button id="btnReports" class="btn ghost sm" hidden>📮 我的反馈</button>
+      <span class="util-hint">☆ 收藏常用篇目，随时回来读</span>
     </div>
 
     <div class="selbar">
@@ -51,17 +66,25 @@
 <!-- ============ 详情阅读页 ============ -->
 <div id="detailView" hidden>
   <header class="topbar detail-top">
-    <button id="btnBack" class="btn ghost">← 返回目录</button>
+    <button id="btnBack" class="btn ghost">← 返回</button>
     <div class="fsctl">
       <button id="fsMinus" class="btn ghost" title="减小字号">A−</button>
       <button id="fsReset" class="btn ghost" title="默认字号">A</button>
       <button id="fsPlus" class="btn ghost" title="增大字号">A+</button>
     </div>
+    <button id="btnFavOne" class="star" title="收藏本文">☆</button>
     <button id="btnPrintOne" class="btn">打印本文</button>
   </header>
   <main class="wrap">
     <article class="reader" id="detailBody"></article>
-    <div class="backbottom"><button id="btnBack2" class="btn ghost">← 返回目录</button></div>
+    <div class="detail-nav">
+      <button id="btnPrev" class="btn ghost" hidden>‹ 上一篇</button>
+      <button id="btnBack2" class="btn ghost">返回目录</button>
+      <button id="btnNext" class="btn ghost" hidden>下一篇 ›</button>
+    </div>
+    <div class="rd-report">
+      <button id="btnReportOpen" class="btn ghost sm">发现问题？告诉老师</button>
+    </div>
     <footer class="pagefoot">
       <div class="disclaimer"></div>
       <div class="foot-brand">光点小塾 · 阅读文库</div>
@@ -72,7 +95,12 @@
 <!-- ============ 打印容器 ============ -->
 <div id="printRoot" aria-hidden="true"></div>
 
-<script src="data.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<!-- ============ 弹窗 ============ -->
+<div class="overlay" id="ovl" hidden>
+  <div class="modal" id="modalBox" role="dialog"></div>
+</div>
+
+<script src="data.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
