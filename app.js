@@ -41,13 +41,12 @@
   function diffCls(a) { return a.diff === '简单' ? 'easy' : (a.diff === '困难' ? 'hard' : 'mid'); }
 
   /* ---------------- 状态 ---------------- */
-  var state = { lib: '全部', genre: '全部', tag: '全部', diff: '全部', q: '' };
+  var state = { genre: '全部', tag: '全部', diff: '全部', q: '' };
   var selected = {};          // id -> true
   var lastScroll = 0;
 
   function filtered() {
     return ALL.filter(function (a) {
-      if (state.lib !== '全部' && a.lib !== state.lib) return false;
       if (state.genre !== '全部' && a.genre !== state.genre) return false;
       if (state.tag !== '全部' && (a.tags || []).indexOf(state.tag) < 0) return false;
       if (state.diff !== '全部' && a.diff !== state.diff) return false;
@@ -82,30 +81,24 @@
   }
 
   function renderChips() {
-    var libs = [['全部'], ['七年级'], ['八九年级']];
     var genres = [['全部'], ['散文'], ['小说'], ['微型小说'], ['记叙文']];
     var diffs = [['全部'], ['简单'], ['中级'], ['困难']];
-    var libEl = $('#libChips'), gEl = $('#genreChips'), dEl = $('#diffChips'), tEl = $('#tagChips');
-    libEl.innerHTML = ''; gEl.innerHTML = ''; dEl.innerHTML = ''; tEl.innerHTML = '';
-    function cnt(libSel, genreSel, diffSel) {
+    var gEl = $('#genreChips'), dEl = $('#diffChips'), tEl = $('#tagChips');
+    gEl.innerHTML = ''; dEl.innerHTML = ''; tEl.innerHTML = '';
+    function cnt(genreSel, diffSel) {
       return ALL.filter(function (a) {
-        if (libSel !== '全部' && a.lib !== libSel) return false;
         if (genreSel !== '全部' && a.genre !== genreSel) return false;
         if (diffSel !== '全部' && a.diff !== diffSel) return false;
         return true;
       }).length;
     }
-    libs.forEach(function (g) {
-      libEl.appendChild(chip({ k: 'lib', v: g[0], label: g[0] === '全部' ? '全部年级' : g[0],
-        on: state.lib === g[0], n: g[0] === '全部' ? '' : cnt(g[0], '全部', '全部') }));
-    });
     genres.forEach(function (g) {
       gEl.appendChild(chip({ k: 'genre', v: g[0], label: g[0] === '全部' ? '全部文体' : g[0],
-        on: state.genre === g[0], n: g[0] === '全部' ? '' : cnt('全部', g[0], '全部') }));
+        on: state.genre === g[0], n: g[0] === '全部' ? '' : cnt(g[0], '全部') }));
     });
     diffs.forEach(function (g) {
       dEl.appendChild(chip({ k: 'diff', v: g[0], label: g[0] === '全部' ? '全部难度' : g[0],
-        on: state.diff === g[0], n: g[0] === '全部' ? '' : cnt('全部', '全部', g[0]) }));
+        on: state.diff === g[0], n: g[0] === '全部' ? '' : cnt('全部', g[0]) }));
     });
     tEl.appendChild(chip({ k: 'tag', v: '全部', label: '全部主题',
       on: state.tag === '全部', n: ALL.length }));
@@ -137,8 +130,8 @@
       (ch ? '<span class="tag adapted">' + ch + '</span>' : '') +
       '    <span class="tag ' + diffCls(a) + '">' + esc(a.diff) + '</span>' +
       '  </div>' +
-      '  <div class="sub">' + esc(a.lib) + ' · 篇 ' + String(a.no).padStart(3, '0') +
-      (a.author !== '佚名' ? ' ｜ 作者：' + esc(a.author) : '') +
+      '  <div class="sub">' +
+      (a.author !== '佚名' ? '作者：' + esc(a.author) : '佚名') +
       (note ? ' ｜ ' + esc(note) : '') + '</div>' +
       '</div>';
   }
@@ -202,7 +195,6 @@
       '  <div class="tags rd-tags">' + tagHtml(a) + '</div>' +
       '  <div class="rd-author">' + (a.author === '佚名' ? '佚名' : esc(a.author)) + '</div>' +
       '  <div class="rd-meta">' +
-      '    <span>' + esc(a.lib) + ' · 篇 ' + String(a.no).padStart(3, '0') + '</span><span class="sep">｜</span>' +
       '    <span>' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') + '</span>' +
       '    <span class="sep">｜</span><span>难度 ' + esc(a.diff) + '</span>' +
       (chLabelShort(a) ? '<span class="sep">｜</span><span>' + esc(chLabelShort(a)) + '</span>' : '') +
@@ -240,8 +232,7 @@
     var note = (a.noteOrigin && a.note) ? a.note : '';
     return '' +
       '<section class="p-sheet">' +
-      '  <div class="p-kicker">' + esc(a.lib) + ' · 阅读篇 ' + String(a.no).padStart(3, '0') +
-      ' ｜ ' + (a.tags || []).join(' · ') +
+      '  <div class="p-kicker">' + (a.tags || []).join(' · ') +
       ' ｜ ' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') +
       ' ｜ 难度 ' + esc(a.diff) + '</div>' +
       '  <h1>' + esc(a.title) + '</h1>' +
