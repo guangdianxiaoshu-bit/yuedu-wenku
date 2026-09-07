@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中学文学性阅读文库 · 光点小塾</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23CD5452'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ 目录主页 ============ -->
+<div id="homeView">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-name">中学文学性阅读文库</div>
+      <div class="brand-sub">散文 · 小说 · 记叙文，仅收文学性文本</div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="disclaimer" id="homeDisclaimer"></div>
+
+    <div class="toolbar">
+      <input id="search" class="search" type="search" placeholder="搜篇名 / 作者">
+      <div class="chips-row" id="libChips"></div>
+      <div class="chips-row" id="genreChips"></div>
+      <div class="chips-row" id="diffChips"></div>
+    </div>
+
+    <div class="selbar">
+      <label class="sel-all"><input type="checkbox" id="ckAll"> 全选当前</label>
+      <span class="sel-info" id="selInfo">已选 0 篇</span>
+      <div class="sel-actions">
+        <button id="btnPrintSel" class="btn" disabled>🖨 打印所选</button>
+        <button id="btnClearSel" class="btn ghost">清空</button>
+      </div>
+    </div>
+
+    <div class="countline" id="countLine"></div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty" hidden>没有匹配的篇目，试试放宽筛选条件。</div>
+
+    <footer class="pagefoot">
+      <div class="disclaimer"></div>
+      <div class="foot-brand">光点小塾 · 阅读文库</div>
+    </footer>
+  </main>
+</div>
+
+<!-- ============ 详情阅读页 ============ -->
+<div id="detailView" hidden>
+  <header class="topbar detail-top">
+    <button id="btnBack" class="btn ghost">← 返回目录</button>
+    <div class="fsctl">
+      <button id="fsMinus" class="btn ghost" title="减小字号">A−</button>
+      <button id="fsReset" class="btn ghost" title="默认字号">A</button>
+      <button id="fsPlus" class="btn ghost" title="增大字号">A+</button>
+    </div>
+    <button id="btnPrintOne" class="btn">打印本文</button>
+  </header>
+  <main class="wrap">
+    <article class="reader" id="detailBody"></article>
+    <div class="backbottom"><button id="btnBack2" class="btn ghost">← 返回目录</button></div>
+    <footer class="pagefoot">
+      <div class="disclaimer"></div>
+      <div class="foot-brand">光点小塾 · 阅读文库</div>
+    </footer>
+  </main>
+</div>
+
+<!-- ============ 打印容器 ============ -->
+<div id="printRoot" aria-hidden="true"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
