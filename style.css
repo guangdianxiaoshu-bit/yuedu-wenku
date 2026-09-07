@@ -214,3 +214,9 @@ textarea.m-ta{width:100%;min-height:96px;border:1px solid var(--line);border-rad
 
 /* hidden 优先（避免 flex 覆盖 hidden 导致透明层拦截） */
 [hidden]{display:none !important}
+
+/* 关注引导 */
+.follow-name{
+  font-size:30px;font-weight:800;color:var(--coral);text-align:center;
+  background:var(--coral-l);border-radius:12px;padding:10px;margin:4px 0 12px;letter-spacing:2px;
+}
