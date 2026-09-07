@@ -1,13 +1,14 @@
-/* 中学文学性阅读文库：目录筛选 + 详情阅读 + 勾选一键打印 */
+/* 中学文学性阅读文库：目录筛选 + 全文阅读 + 收藏/随机 + 勾选打印 */
 (function () {
   'use strict';
   var M = window.YDW.meta;
   var DIS = M.disclaimer;
   var ALL = window.YDW.articles.map(function (a) {
     a._id = (a.lib === '七年级' ? '七' : a.lib.charAt(0)) + '-' + String(a.no).padStart(3, '0');
-    a._short = a.lib === '七年级' ? '七' : '八';
     return a;
   });
+  var TAG_ORDER = ['写景', '抒情', '写人', '叙事', '怀旧', '思乡',
+                   '亲情', '成长', '家国', '科幻', '人与自然', '市井', '乡土', '教育', '读书'];
 
   function $(s) { return document.querySelector(s); }
   function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
@@ -15,22 +16,18 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
-  var TAG_ORDER = ['写景', '抒情', '叙事', '怀旧', '思乡', '亲情', '成长', '家国',
-                   '科幻', '人与自然', '市井', '乡土', '教育', '读书'];
-  /* 行内：转义后还原 **加粗** */
   function inline(s) {
     return esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   }
-  /* 正文：段落按空行分隔，段内换行转 <br> */
   function bodyHtml(text) {
     var out = [];
-    var paras = String(text).split(/\n{2,}/);
-    for (var i = 0; i < paras.length; i++) {
-      var seg = paras[i].trim();
-      if (!seg) continue;
-      var inner = seg.split('\n').map(function (l) { return inline(l.trim() ? l : ' '); }).join('<br>');
-      out.push('<p>' + inner + '</p>');
-    }
+    String(text).split(/\n{2,}/).forEach(function (seg) {
+      var s = seg.trim();
+      if (!s) return;
+      out.push('<p>' + s.split('\n').map(function (l) {
+        return inline(l.trim() ? l : ' ');
+      }).join('<br>') + '</p>');
+    });
     return out.join('\n');
   }
   function chipLabel(a) {
@@ -39,33 +36,80 @@
     return '';
   }
   function diffCls(a) { return a.diff === '简单' ? 'easy' : (a.diff === '困难' ? 'hard' : 'mid'); }
+  function tagHtml(a) {
+    return (a.tags || []).map(function (t) {
+      return '<span class="tag theme">' + esc(t) + '</span>';
+    }).join('');
+  }
+  function lenTxt(a) { return '约 ' + a.wc + ' 字 · 约 ' + a.mins + ' 分钟'; }
+
+  /* ---------------- 本地存储 ---------------- */
+  function load(key, def) {
+    try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }
+    catch (e) { return def; }
+  }
+  function save(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ }
+  }
+  var favs = load('ywd_fav_v1', []);            // id 数组
+  var reports = load('ywd_reports_v1', []);     // [{id,title,note,ts}]
+
+  function isFav(id) { return favs.indexOf(id) >= 0; }
+  function toggleFav(id) {
+    var i = favs.indexOf(id);
+    if (i >= 0) favs.splice(i, 1); else favs.push(id);
+    save('ywd_fav_v1', favs);
+    var a = byId(id);
+    refreshStarState(id, a ? isFav(id) : false);
+    updateUtilBar();
+    if (state.fav) renderList();
+    if (state.fav) updateSelBar();
+  }
+  function byId(id) {
+    for (var i = 0; i < ALL.length; i++) if (ALL[i]._id === id) return ALL[i];
+    return null;
+  }
 
   /* ---------------- 状态 ---------------- */
-  var state = { genre: '全部', tag: '全部', diff: '全部', q: '' };
-  var selected = {};          // id -> true
+  var state = { genre: '全部', tag: '全部', diff: '全部', q: '', author: '', fav: false };
+  var selected = {};
+  var curId = null;
   var lastScroll = 0;
 
   function filtered() {
     return ALL.filter(function (a) {
+      if (state.fav && !isFav(a._id)) return false;
       if (state.genre !== '全部' && a.genre !== state.genre) return false;
       if (state.tag !== '全部' && (a.tags || []).indexOf(state.tag) < 0) return false;
       if (state.diff !== '全部' && a.diff !== state.diff) return false;
+      if (state.author && a.author !== state.author) return false;
       if (state.q) {
-        var hay = (a.title + ' ' + a.author + ' ' + (a.note || '')).toLowerCase();
-        if (hay.indexOf(state.q.toLowerCase()) < 0) return false;
+        var q = state.q.toLowerCase();
+        var hay = (a.title + ' ' + a.author + ' ' + (a.note || '') + ' ' +
+                   a.body.slice(0, 3000)).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
       }
       return true;
     });
   }
 
-  /* ---------------- 免责声明（每个页面都带） ---------------- */
+  /* ---------------- 免责 / 版本 ---------------- */
   function fillDisclaimers() {
     $$('.disclaimer').forEach(function (el) {
       if (!el.textContent.trim()) el.textContent = DIS;
     });
   }
+  function initVersionTip() {
+    var k = 'ywd_ver_v1';
+    var old = null;
+    try { old = localStorage.getItem(k); } catch (e) { return; }
+    if (old && old !== M.version) {
+      $('#verTip').hidden = false;
+    }
+    try { localStorage.setItem(k, M.version); } catch (e) { /* ignore */ }
+  }
 
-  /* ---------------- 目录页 ---------------- */
+  /* ---------------- chips & 作者 ---------------- */
   function chip(opts) {
     var el = document.createElement('button');
     el.type = 'button';
@@ -74,29 +118,26 @@
     el.dataset.v = opts.v;
     el.innerHTML = esc(opts.label) + (opts.n ? '<span class="n">' + opts.n + '</span>' : '');
     el.addEventListener('click', function () {
-      state[opts.k] = opts.v;   /* k ∈ lib/genre/tag/diff */
+      state[opts.k] = opts.v;
       renderHome();
     });
     return el;
   }
-
+  function cnt(genreSel, diffSel) {
+    return ALL.filter(function (a) {
+      if (genreSel !== '全部' && a.genre !== genreSel) return false;
+      if (diffSel !== '全部' && a.diff !== diffSel) return false;
+      return true;
+    }).length;
+  }
   function renderChips() {
-    var genres = [['全部'], ['散文'], ['小说'], ['微型小说'], ['记叙文']];
-    var diffs = [['全部'], ['简单'], ['中级'], ['困难']];
     var gEl = $('#genreChips'), dEl = $('#diffChips'), tEl = $('#tagChips');
     gEl.innerHTML = ''; dEl.innerHTML = ''; tEl.innerHTML = '';
-    function cnt(genreSel, diffSel) {
-      return ALL.filter(function (a) {
-        if (genreSel !== '全部' && a.genre !== genreSel) return false;
-        if (diffSel !== '全部' && a.diff !== diffSel) return false;
-        return true;
-      }).length;
-    }
-    genres.forEach(function (g) {
+    [['全部'], ['散文'], ['小说'], ['微型小说'], ['记叙文']].forEach(function (g) {
       gEl.appendChild(chip({ k: 'genre', v: g[0], label: g[0] === '全部' ? '全部文体' : g[0],
         on: state.genre === g[0], n: g[0] === '全部' ? '' : cnt(g[0], '全部') }));
     });
-    diffs.forEach(function (g) {
+    [['全部'], ['简单'], ['中级'], ['困难']].forEach(function (g) {
       dEl.appendChild(chip({ k: 'diff', v: g[0], label: g[0] === '全部' ? '全部难度' : g[0],
         on: state.diff === g[0], n: g[0] === '全部' ? '' : cnt('全部', g[0]) }));
     });
@@ -109,13 +150,21 @@
       }
     });
   }
-
-  function tagHtml(a) {
-    return (a.tags || []).map(function (t) {
-      return '<span class="tag theme">' + esc(t) + '</span>';
-    }).join('');
+  function renderAuthorSel() {
+    var names = [];
+    ALL.forEach(function (a) {
+      if (a.author && a.author !== '佚名' && names.indexOf(a.author) < 0) names.push(a.author);
+    });
+    names.sort(function (x, y) { return x.localeCompare(y, 'zh'); });
+    var sel = $('#authorSel');
+    sel.innerHTML = '<option value="">全部作者</option>' +
+      names.map(function (n) {
+        return '<option value="' + esc(n) + '"' + (state.author === n ? ' selected' : '') + '>' +
+          esc(n) + '</option>';
+      }).join('');
   }
 
+  /* ---------------- 列表 ---------------- */
   function liHtml(a) {
     var note = (a.noteOrigin && a.note) ? a.note : '';
     var ch = chipLabel(a);
@@ -123,22 +172,21 @@
       '<input type="checkbox" class="ck" ' + (selected[a._id] ? 'checked' : '') + '>' +
       '<div class="main" data-id="' + a._id + '">' +
       '  <div class="t">' + esc(a.title) + '</div>' +
-      '  <div class="tags">' +
-      tagHtml(a) +
+      '  <div class="tags">' + tagHtml(a) +
       '    <span class="tag genre">' + esc(a.genre) + '</span>' +
       (a.genreNote ? '<span class="tag none">' + esc(a.genreNote) + '</span>' : '') +
       (ch ? '<span class="tag adapted">' + ch + '</span>' : '') +
       '    <span class="tag ' + diffCls(a) + '">' + esc(a.diff) + '</span>' +
       '  </div>' +
-      '  <div class="sub">' +
+      '  <div class="sub">' + lenTxt(a) + ' ｜ ' +
       (a.author !== '佚名' ? '作者：' + esc(a.author) : '佚名') +
       (note ? ' ｜ ' + esc(note) : '') + '</div>' +
-      '</div>';
+      '</div>' +
+      '<button class="star" data-id="' + a._id + '" title="收藏">' + (isFav(a._id) ? '★' : '☆') + '</button>';
   }
-
   function renderList() {
     var list = filtered();
-    $('#countLine').textContent = '共 ' + list.length + ' 篇';
+    $('#countLine').textContent = '共 ' + list.length + ' 篇' + (state.fav ? '（我的收藏）' : '');
     $('#empty').hidden = list.length > 0;
     var ul = $('#list');
     ul.innerHTML = '';
@@ -152,6 +200,11 @@
         if (ck.checked) selected[a._id] = true; else delete selected[a._id];
         updateSelBar();
       });
+      var star = li.querySelector('.star');
+      star.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleFav(a._id);
+      });
       li.addEventListener('click', function (e) {
         var main = e.target.closest('.main');
         if (main) openDetail(main.dataset.id);
@@ -159,37 +212,46 @@
       ul.appendChild(li);
     });
   }
-
   function updateSelBar() {
     var n = Object.keys(selected).length;
     $('#selInfo').textContent = '已选 ' + n + ' 篇';
     $('#btnPrintSel').disabled = n === 0;
-    $('#ckAll').checked = false;
     var list = filtered();
-    var allOn = list.length > 0 && list.every(function (a) { return selected[a._id]; });
-    $('#ckAll').checked = allOn;
+    $('#ckAll').checked = list.length > 0 && list.every(function (a) { return selected[a._id]; });
   }
-
+  function updateUtilBar() {
+    var f = $('#btnFav');
+    f.textContent = (state.fav ? '★' : '☆') + ' 我的收藏';
+    f.classList.toggle('on', state.fav);
+    if (reports.length) {
+      var b = $('#btnReports');
+      b.hidden = false;
+      b.textContent = '📮 反馈 ' + reports.length;
+    }
+  }
   function renderHome() {
     $('#homeView').hidden = false;
     $('#detailView').hidden = true;
+    curId = null;
     renderChips();
+    renderAuthorSel();
     renderList();
     updateSelBar();
+    updateUtilBar();
     fillDisclaimers();
     if (location.hash.indexOf('#/read/') !== 0) window.scrollTo(0, lastScroll);
   }
 
-  /* ---------------- 详情页 ---------------- */
+  /* ---------------- 详情 ---------------- */
   function openDetail(id) {
-    var a = ALL.filter(function (x) { return x._id === id; })[0];
+    var a = byId(id);
     if (!a) { location.hash = '#/'; return; }
+    curId = id;
     lastScroll = window.scrollY;
     $('#homeView').hidden = true;
     $('#detailView').hidden = false;
-    var h = $('#detailBody');
     var note = (a.noteOrigin && a.note) ? a.note : '';
-    h.innerHTML =
+    $('#detailBody').innerHTML =
       '<header class="rd-head">' +
       '  <div class="rd-title">' + esc(a.title) + '</div>' +
       '  <div class="tags rd-tags">' + tagHtml(a) + '</div>' +
@@ -198,6 +260,7 @@
       '    <span>' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') + '</span>' +
       '    <span class="sep">｜</span><span>难度 ' + esc(a.diff) + '</span>' +
       (chLabelShort(a) ? '<span class="sep">｜</span><span>' + esc(chLabelShort(a)) + '</span>' : '') +
+      '    <span class="sep">｜</span><span>' + esc(lenTxt(a)) + '</span>' +
       '  </div>' +
       '  <div class="rd-meta">' +
       (note ? '<span>选文：' + esc(note) + '</span><br>' : '') +
@@ -206,20 +269,40 @@
       '</header>' +
       '<div class="rd-body">' + bodyHtml(a.body) + '</div>' +
       (a.tailNote ? '<p class="tailnote">（' + esc(a.tailNote) + '）</p>' : '');
-    if (location.hash !== '#/read/' + id) { history.replaceState(null, '', '#/read/' + id); }
+    refreshStarState(id, isFav(id));
+    updateNav(a);
+    if (location.hash !== '#/read/' + id) history.replaceState(null, '', '#/read/' + id);
     window.scrollTo(0, 0);
     fillDisclaimers();
   }
   function chLabelShort(a) {
-    var c = chipLabel(a);
-    if (c) return c;
-    return '';
+    return chipLabel(a);
+  }
+  function refreshStarState(id, on) {
+    var one = $('#btnFavOne');
+    one.textContent = on ? '★' : '☆';
+    one.classList.toggle('on', on);
+  }
+  function updateNav(a) {
+    var list = filtered();
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) if (list[i]._id === a._id) idx = i;
+    var prev = idx > 0 ? list[idx - 1] : null;
+    var next = (idx >= 0 && idx < list.length - 1) ? list[idx + 1] : null;
+    var bp = $('#btnPrev'), bn = $('#btnNext');
+    bp.hidden = !prev;
+    bn.hidden = !next;
+    bp.title = prev ? ('上一篇：' + prev.title) : '';
+    bn.title = next ? ('下一篇：' + next.title) : '';
+    bp.onclick = null; bn.onclick = null;
+    if (prev) bp.onclick = function () { openDetail(prev._id); };
+    if (next) bn.onclick = function () { openDetail(next._id); };
   }
 
   /* ---------------- 字号 ---------------- */
   var fs = 17;
   function applyFs() {
-    var b = document.querySelector('.rd-body');
+    var b = document.querySelector('#detailBody .rd-body');
     if (b) b.style.fontSize = fs + 'px';
   }
   function bumpFs(d) {
@@ -227,14 +310,34 @@
     applyFs();
   }
 
+  /* ---------------- 弹窗 ---------------- */
+  function showModal(html) {
+    $('#modalBox').innerHTML = html;
+    $('#ovl').hidden = false;
+  }
+  function closeModal() {
+    $('#ovl').hidden = true;
+    $('#modalBox').innerHTML = '';
+  }
+
+  /* ---------------- 随机一篇 ---------------- */
+  function openRandom() {
+    var list = filtered();
+    if (!list.length) return;
+    var a = list[Math.floor(Math.random() * list.length)];
+    openDetail(a._id);
+  }
+
   /* ---------------- 打印 ---------------- */
+  var POPT = load('ywd_print_v1', { fs: 'md', src: true, page: 'each' });
+  var pendingPrint = [];
   function sheetHtml(a) {
     var note = (a.noteOrigin && a.note) ? a.note : '';
     return '' +
       '<section class="p-sheet">' +
       '  <div class="p-kicker">' + (a.tags || []).join(' · ') +
       ' ｜ ' + esc(a.genre) + (a.genreNote ? ' · ' + esc(a.genreNote) : '') +
-      ' ｜ 难度 ' + esc(a.diff) + '</div>' +
+      ' ｜ 难度 ' + esc(a.diff) + ' ｜ ' + esc(lenTxt(a)) + '</div>' +
       '  <h1>' + esc(a.title) + '</h1>' +
       '  <p class="p-author">' + esc(a.author) + '</p>' +
       '  <p class="p-src">' + esc(a.source) + (note ? ' ｜ ' + esc(note) : '') + '</p>' +
@@ -245,11 +348,118 @@
   }
   function doPrint(ids) {
     var root = $('#printRoot');
+    root.className = 'pfs-' + POPT.fs + (POPT.src ? '' : ' nosrc') +
+                     (POPT.page === 'cont' ? ' p-cont' : '');
     root.innerHTML = ids.map(function (id) {
-      var a = ALL.filter(function (x) { return x._id === id; })[0];
+      var a = byId(id);
       return a ? sheetHtml(a) : '';
     }).join('');
     setTimeout(function () { window.print(); }, 60);
+  }
+  function askPrint(ids) {
+    if (!ids.length) return;
+    pendingPrint = ids;
+    showModal(
+      '<h3>🖨 打印设置</h3>' +
+      '<div class="m-field"><b>正文字号</b>' +
+      '  <label><input type="radio" name="pfs" value="sm"' + (POPT.fs === 'sm' ? ' checked' : '') + '> 小号（省纸）</label>' +
+      '  <label><input type="radio" name="pfs" value="md"' + (POPT.fs === 'md' ? ' checked' : '') + '> 中号</label>' +
+      '  <label><input type="radio" name="pfs" value="lg"' + (POPT.fs === 'lg' ? ' checked' : '') + '> 大号（易读）</label>' +
+      '</div>' +
+      '<div class="m-field"><b>排版</b>' +
+      '  <label><input type="radio" name="ppage" value="each"' + (POPT.page === 'each' ? ' checked' : '') + '> 每篇另起一页</label>' +
+      '  <label><input type="radio" name="ppage" value="cont"' + (POPT.page === 'cont' ? ' checked' : '') + '> 连续排版（省纸）</label>' +
+      '</div>' +
+      '<div class="m-field"><label><input type="checkbox" id="psrc"' + (POPT.src ? ' checked' : '') + '> 打印作者与出处</label></div>' +
+      '<div class="m-actions">' +
+      '  <button class="btn ghost" onclick="window.__ywdClose && window.__ywdClose()">取消</button>' +
+      '  <button class="btn" id="mPrintGo">打印 ' + ids.length + ' 篇</button>' +
+      '</div>');
+    $('#mPrintGo').addEventListener('click', function () {
+      var fs = document.querySelector('input[name=pfs]:checked').value;
+      var page = document.querySelector('input[name=ppage]:checked').value;
+      POPT = { fs: fs, src: $('#psrc').checked, page: page };
+      save('ywd_print_v1', POPT);
+      closeModal();
+      doPrint(pendingPrint);
+    });
+  }
+
+  /* ---------------- 错误反馈 ---------------- */
+  function openReport() {
+    var a = curId ? byId(curId) : null;
+    if (!a) return;
+    showModal(
+      '<h3>发现问题？告诉老师</h3>' +
+      '<div class="rep-item" style="border:none;padding:0 0 6px"><div class="t">' + esc(a.title) + '</div>' +
+      '<div class="n">错字、标点、排版等问题都可以写在这里，反馈会保存在你的设备上。</div></div>' +
+      '<textarea id="repNote" class="m-ta" placeholder="例如：第 3 段第 2 行有个错别字……"></textarea>' +
+      '<div class="m-actions">' +
+      '  <button class="btn ghost" onclick="window.__ywdClose && window.__ywdClose()">取消</button>' +
+      '  <button class="btn" id="repGo">保存反馈</button>' +
+      '</div>');
+    $('#repGo').addEventListener('click', function () {
+      var note = $('#repNote').value.trim();
+      if (!note) { closeModal(); return; }
+      reports.push({ id: a._id, title: a.title, note: note, ts: Date.now() });
+      save('ywd_reports_v1', reports);
+      closeModal();
+      alert('已保存，谢谢反馈！可以到主页点"📮 我的反馈"查看或复制给老师。');
+      updateUtilBar();
+    });
+  }
+  function showReports() {
+    if (!reports.length) {
+      showModal('<h3>📮 我的反馈</h3><div class="m-empty">还没有保存过反馈。</div>' +
+        '<div class="m-actions"><button class="btn ghost" onclick="window.__ywdClose && window.__ywdClose()">关闭</button></div>');
+      return;
+    }
+    var html = '<h3>📮 我的反馈（' + reports.length + ' 条）</h3>';
+    html += reports.map(function (r, i) {
+      var d = new Date(r.ts);
+      var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0') + ' ' +
+               String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      return '<div class="rep-item"><div class="t">' + (i + 1) + '. ' + esc(r.title) + '</div>' +
+        '<div class="n">' + ds + '</div><div>' + esc(r.note) + '</div></div>';
+    }).join('');
+    html += '<div class="m-actions">' +
+      '<button class="btn ghost" id="repClear">清空</button>' +
+      '<button class="btn ghost" onclick="window.__ywdClose && window.__ywdClose()">关闭</button>' +
+      '<button class="btn" id="repCopy">复制全部</button></div>';
+    showModal(html);
+    $('#repCopy').addEventListener('click', function () {
+      var txt = reports.map(function (r, i) {
+        return (i + 1) + '. 《' + r.title + '》 ' + r.note;
+      }).join('\n');
+      copyText('【阅读文库反馈】\n' + txt);
+    });
+    $('#repClear').addEventListener('click', function () {
+      if (!window.confirm('确定清空全部反馈吗？')) return;
+      reports = [];
+      save('ywd_reports_v1', reports);
+      closeModal();
+      updateUtilBar();
+    });
+  }
+  function copyText(txt) {
+    function done() { alert('已复制，可粘贴发给老师。'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, function () { fallbackCopy(txt); });
+    } else fallbackCopy(txt);
+  }
+  function fallbackCopy(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) alert('已复制，可粘贴发给老师。');
+    else window.prompt('请手动复制：', txt);
   }
 
   /* ---------------- 事件 ---------------- */
@@ -257,6 +467,19 @@
     $('#search').addEventListener('input', function () {
       state.q = this.value.trim();
       renderHome();
+    });
+    $('#authorSel').addEventListener('change', function () {
+      state.author = this.value;
+      renderHome();
+    });
+    $('#btnFav').addEventListener('click', function () {
+      state.fav = !state.fav;
+      renderHome();
+    });
+    $('#btnRandom').addEventListener('click', openRandom);
+    $('#btnReports').addEventListener('click', showReports);
+    $('#verOk').addEventListener('click', function () {
+      $('#verTip').hidden = true;
     });
     $('#ckAll').addEventListener('change', function () {
       var on = this.checked;
@@ -274,17 +497,16 @@
     $('#btnPrintSel').addEventListener('click', function () {
       var ids = filtered().map(function (a) { return a._id; })
         .filter(function (id) { return selected[id]; });
-      doPrint(ids);
+      askPrint(ids);
     });
     $('#btnPrintOne').addEventListener('click', function () {
-      var id = (location.hash.match(/#\/read\/(.+)/) || [])[1];
-      if (id) {
-        try { id = decodeURIComponent(id); } catch (e) { /* keep */ }
-        doPrint([id]);
-      }
+      if (curId) askPrint([curId]);
     });
+    $('#btnFavOne').addEventListener('click', function () {
+      if (curId) toggleFav(curId);
+    });
+    $('#btnReportOpen').addEventListener('click', openReport);
     function back() {
-      selected = selected; /* 保留选择 */
       location.hash = '#/';
       renderHome();
     }
@@ -293,19 +515,21 @@
     $('#fsPlus').addEventListener('click', function () { bumpFs(1); });
     $('#fsMinus').addEventListener('click', function () { bumpFs(-1); });
     $('#fsReset').addEventListener('click', function () { fs = 17; applyFs(); });
+    $('#ovl').addEventListener('click', function (e) {
+      if (e.target.id === 'ovl') closeModal();
+    });
+    window.__ywdClose = closeModal;
   }
 
   /* ---------------- 路由 ---------------- */
   function route() {
     var m = location.hash.match(/#\/read\/(.+)/);
-    if (m) {
-      openDetail(decodeURIComponent(m[1]));
-    } else {
-      renderHome();
-    }
+    if (m) openDetail(decodeURIComponent(m[1]));
+    else renderHome();
   }
   window.addEventListener('hashchange', route);
 
   bind();
+  initVersionTip();
   route();
 })();
